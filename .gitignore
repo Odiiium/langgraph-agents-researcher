@@ -1,0 +1,13 @@
+# Secrets — never commit real keys
+*.env
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+
+# Generated pipeline metrics (per-run output)
+local_stats.txt
+
+# Chapter files are rebuilt automatically from the source book on first run
+knowledge_base/*_chapters/
