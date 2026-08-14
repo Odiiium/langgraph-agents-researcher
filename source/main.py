@@ -12,24 +12,21 @@ from dotenv import load_dotenv
 from langgraph.graph import StateGraph, START, END
 from langfuse.langchain import CallbackHandler
 from langchain_core.messages import HumanMessage
-from langgraph.prebuilt import ToolNode
 from langchain.tools import tool, tool_node
 from functools import wraps
 from datetime import datetime
+from zoneinfo import ZoneInfo
 
 MAX_ITERATIONS = 3
 openai_model = "openai:gpt-4o"
+TIMEZONE = "Europe/Kyiv"
 load_dotenv()
-
-additional_tools = [
-    get_current_datetime
-]
 
 researcher_agent = deepagents.create_deep_agent(
     model=openai_model,
     system_prompt=RESEARCHER_SYSTEM_PROMPT,
     response_format=ResearchResult,
-    tools=[search_tool, calculator_tool]
+    tools=[search_tool, calculator_tool, get_current_datetime]
 )
 
 planner_llm = ChatOpenAI(
@@ -66,8 +63,12 @@ def save_graph_image(graph):
     print("Graph saved to graph.png")
 
 @node_print
+def current_time_node(state : ResearchState):
+    return {"current_time": datetime.now(ZoneInfo(TIMEZONE)).isoformat()}
+
+@node_print
 def planner_node(state : ResearchState):
-    plan = planner_llm.invoke(build_planner_prompt(state["user_query"]))
+    plan = planner_llm.invoke(build_planner_prompt(state["user_query"], state["current_time"]))
     return { "plan" : plan }
     
 @node_print
@@ -91,6 +92,7 @@ def analyzer_node(state : ResearchState):
             plan=state["plan"],
             research=state["research"],
             previous_check=state.get("check_result"),
+            date=date_block(state.get("current_time")),
         )
     )
     
@@ -107,6 +109,7 @@ def checker_node(state : ResearchState):
                 research=state["research"],
                 analysis=state["analysis"],
                 iteration_count=state["iteration_count"],
+                date=date_block(state.get("current_time")),
         )
     )
 
@@ -187,7 +190,6 @@ def save_result_node(state: ResearchState):
     print(f"Research result saved to {output_dir}")
     return {}
 
-@node_print
 def decide_next_by_checker_result(state: ResearchState):
     if state["iteration_count"] >= MAX_ITERATIONS:
         print("Maximum research iterations reached")
@@ -201,34 +203,23 @@ def decide_next_by_checker_result(state: ResearchState):
     print("Decision result is empty")
     return "research"
 
-@node_print
-def decide_need_actual_time(state : ResearchState):
-    if state["plan"].require_current_time:
-        return "get_time"
-    else:
-        return "pass"
-
 langfuse_handler = CallbackHandler()
 print("1. langfuse handler created")
 
 graph = StateGraph(ResearchState)
 print("2. graph created")
 
+graph.add_node("current_time", current_time_node)
 graph.add_node("planner", planner_node)
-graph.add_node("get_time", ToolNode(additional_tools))
 graph.add_node("research", researcher_node)
 graph.add_node("analyzer", analyzer_node)
 graph.add_node("checker", checker_node)
 graph.add_node("synthesizer", synthesizer_node)
 graph.add_node("save_result", save_result_node)
 
-graph.add_edge(START, "planner")
-graph.add_conditional_edges("planner", decide_need_actual_time,
-                            {
-                                "get_time" : "get_time",
-                                "pass" : "research"
-                            })
-graph.add_edge("get_time", "research")
+graph.add_edge(START, "current_time")
+graph.add_edge("current_time", "planner")
+graph.add_edge("planner", "research")
 graph.add_edge("research", "analyzer")
 graph.add_edge("analyzer", "checker")
 graph.add_conditional_edges("checker", decide_next_by_checker_result, 
@@ -246,6 +237,7 @@ save_graph_image(graph)
 
 result = graph.invoke(ResearchState(
     user_query="Research possible bitcoin fluctuations and market moves in meantime. Give an answer in which side is better to invest right now",
+    current_time=None,
     iteration_count=0,
     plan=None,
     research=None,

@@ -81,7 +81,7 @@ def search_tool(query : str,
         return [SearchResult(title=result.get("title", ""),
                                 url = result.get("url", ""),
                                 content = result.get("content", ""),
-                                published_date=result.get("published_date", "")) for result in results]
+                                published_date=result.get("published_date")) for result in results]
 
     except Exception as e:
             return f"Search failed for query {query} with exception: {e}"

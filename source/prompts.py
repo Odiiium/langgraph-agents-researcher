@@ -1,8 +1,28 @@
+from datetime import datetime
+
 from source.models import ResearchState
 
-def build_planner_prompt(user_query):
+
+def date_block(current_time: str | None) -> str:
+    if not current_time:
+        return ""
+    dt = datetime.fromisoformat(current_time)
+    return f"""## Current date
+
+Today is {dt.strftime('%Y-%m-%d (%A)')}. Full timestamp: {current_time}.
+
+Your training data is outdated. Treat this date as ground truth and assume
+anything you recall from training may be stale. Use this date when building
+search queries, when interpreting phrases like "recent" or "current", and
+when judging whether a source is fresh enough.
+"""
+
+
+def build_planner_prompt(user_query, current_time=None):
     return f"""
         Create a research plan for the following user request.
+
+        {date_block(current_time)}
 
         User request:
         {user_query}
@@ -12,28 +32,18 @@ def build_planner_prompt(user_query):
         Each task must contain:
         - question: a specific question that needs to be answered
         - purpose: why this information is needed
-        
-        Your training data is outdated. Treat this date as ground truth.
-        Any information you recall from training may be stale.
-        If task requires actual data, return 'require_current_time' as True
-        
-        Example 1:
-        Q : query - Analyze Nvidia stock price
-        A : tasks : [task1, task2, task3], require_current_time = True
-        
-        Example 2:
-        Q : what whether is on Berlin right now ?
-        A : tasks : [task1, task2], require_current_time = True
-        
-        Example 3:
-        Q : how to play piano correctly ?
-        A : tasks : [task1, task2, task3], require_current_time = False
-        
+
+        When the request depends on current or recent information
+        (prices, news, events, phrases like "right now", "current",
+        "latest"), anchor the questions to the current date shown above
+        instead of leaving them open-ended.
+
         Do not answer the questions.
         Only create the research plan.
         """
 
 def build_researcher_prompt(state: ResearchState) -> str:
+    current_time = state.get("current_time")
     check_result = state.get("check_result")
 
     if check_result is None:
@@ -58,6 +68,8 @@ def build_researcher_prompt(state: ResearchState) -> str:
 
     If checker feedback exists, prioritize the issues identified by
     the checker.
+
+    {date_block(current_time)}
 
     ## Original user request
 
@@ -97,7 +109,7 @@ def build_researcher_prompt(state: ResearchState) -> str:
     during this research iteration.
     """  
   
-RESEARCHER_SYSTEM_PROMPT = f"""
+RESEARCHER_SYSTEM_PROMPT = """
 You are a research agent responsible for collecting reliable,
 relevant, and up-to-date information needed to answer the user's
 research tasks.
@@ -114,8 +126,11 @@ and add new evidence rather than discarding previous research.
   Search the web for external information, documentation, articles,
   news, research papers, and other sources.
 
-- get_current_time:
-  Get the current date and time for a specific timezone.
+- get_current_datetime:
+  Get the current date and time for a specific timezone. The current date
+  is already provided to you above; use this tool only for timezone
+  conversions or relative date calculations (for example, how many days
+  passed since a source's publication date).
 
 - calculator_tool:
   Perform precise mathematical calculations.
@@ -183,8 +198,9 @@ Use tools autonomously when needed.
 
 You do not need to use every available tool.
 
-Do not call get_current_time unless the current date or time is relevant
-to the research.
+Do not call get_current_datetime unless a timezone conversion or a relative
+date calculation is actually required. The current date is already given
+to you above.
 
 Do not use calculator_tool unless an exact calculation is required.
 
@@ -208,6 +224,9 @@ Each source should contain:
 - a unique source ID;
 - title;
 - URL;
+- published_date: the publication date returned by search_tool.
+  Copy it verbatim from the search result. Use null if the search
+  result did not provide one — never guess or invent a date.
 - relevant extracted content.
 
 The ResearchResult should contain evidence that can later be analyzed
@@ -222,6 +241,8 @@ You are an analysis agent in a research pipeline.
 
 Your task is to analyze the research results collected by the researcher and
 produce a structured analysis.
+
+{date}
 
 Previous checker feedback:
 {previous_check}
@@ -283,6 +304,8 @@ are sufficient to produce a reliable answer to the user's question.
 
 You do NOT perform web searches and you do NOT produce the final answer.
 
+{date}
+
 This is research iteration {iteration_count}.
 
 Do not request another iteration unless it is necessary.
@@ -328,9 +351,12 @@ Evaluate the research and analysis for:
    - Is there irrelevant information that should not influence the final answer?
 
 6. Freshness
-   - If the question is time-sensitive, is the collected information
-     sufficiently recent?
-   - Are recent claims supported by recent sources?
+   - Compare the published_date of each source against the current date
+     shown above.
+   - For time-sensitive questions, sources older than a few weeks are
+     usually insufficient — request "research" in that case.
+   - Sources with a missing published_date should be treated as
+     unverified in terms of freshness.
 
 ## Decision rules
 

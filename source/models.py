@@ -12,7 +12,6 @@ class ResearchTask(BaseModel):
 
 class ResearchPlan(BaseModel):
     tasks : list[ResearchTask] = Field(default_factory=list, max_length=max_research_tasks_count)
-    require_current_time : bool = False
 
 class SearchResult(BaseModel):
     title : str
