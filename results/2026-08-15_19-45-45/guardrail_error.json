@@ -1,0 +1,6 @@
+{
+  "guardrail": "input_length_guardrail",
+  "node": "pre_planner",
+  "attempt": 0,
+  "message": "User query input length is above the limit"
+}

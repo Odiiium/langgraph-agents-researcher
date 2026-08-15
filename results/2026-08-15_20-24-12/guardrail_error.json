@@ -1,0 +1,6 @@
+{
+  "guardrail": "research_iterations_guardrail",
+  "node": "research",
+  "attempt": 3,
+  "message": "Research iterations count reached the limit"
+}

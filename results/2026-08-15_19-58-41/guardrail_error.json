@@ -1,0 +1,6 @@
+{
+  "guardrail": "empty_query_guardrail",
+  "node": "pre_planner",
+  "attempt": 0,
+  "message": "User query is empty"
+}

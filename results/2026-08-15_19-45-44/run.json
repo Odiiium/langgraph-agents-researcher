@@ -1,0 +1,372 @@
+{
+  "user_query": "Predict the exact Bitcoin closing price for next Friday and justify every figure with fresh sources.",
+  "iteration_count": 3,
+  "guardrail_violation": {
+    "guardrail": "research_iterations_guardrail",
+    "node": "research",
+    "attempt": 3,
+    "message": "Research iterations count reached the limit"
+  },
+  "plan": {
+    "tasks": [
+      {
+        "question": "What exact calendar date and timestamp correspond to “next Friday’s Bitcoin closing price” relative to 2026-08-15, and which widely accepted closing convention (e.g., 23:59:59 UTC daily close, CME CF BRR/BRRNY fix, a specific exchange’s daily candle close) will be used?",
+        "purpose": "Define the target variable precisely (date/time/standard) so the prediction is unambiguous and reproducible. Anchor: Friday, 2026-08-21."
+      },
+      {
+        "question": "Which primary index/exchange price source will be used for the closing print on 2026-08-21, and which secondary sources will be used for cross-verification (with documented methodologies and time zones)?",
+        "purpose": "Select authoritative, fresh, and consistent data providers and establish redundancy to justify the final figure with sources."
+      },
+      {
+        "question": "What is the exact current BTC price and most recent daily close as of 2026-08-15T22:33:03+03:00 from at least two independent sources, and how do they differ (if at all)?",
+        "purpose": "Establish a baseline level and quantify any source dispersion to inform data selection and error handling."
+      }
+    ]
+  },
+  "research": {
+    "findings": [
+      {
+        "id": "f_r1_next_friday_definition",
+        "statement": "Relative to the user anchor date 2026-08-15, “next Friday” is the calendar date 2026-08-21. For an unambiguous, reproducible closing convention for that Friday I will use the CME CF Bitcoin Reference Rate (BRR) published for 21 August 2026 — the BRR is defined as the index representing trade activity during the 60-minute TWAP ending at 16:00 London time on the Calculation Day (disseminated after that time).",
+        "supporting_source_ids": [
+          "cme_brr_methodology_pdf",
+          "cfbenchmarks_brr_page"
+        ]
+      },
+      {
+        "id": "f_r2_brr_timezone_mapping",
+        "statement": "CME/CF Benchmarks specify the BRR observation window as the 60-minute TWAP up to and including 16:00 London time on the Calculation Day. In late August the UK observes British Summer Time (BST = UTC+1), so 16:00 London time on 2026-08-21 corresponds to 15:00:00 UTC on 2026-08-21; therefore the BRR observation end (the reference instant for the daily BRR) is 15:00:00 UTC on 2026-08-21. (BRR published daily at about 16:00 London time / shortly thereafter; precision to $0.01.)",
+        "supporting_source_ids": [
+          "cme_brr_methodology_pdf",
+          "cfbenchmarks_brr_page",
+          "utc_bst_reference"
+        ]
+      },
+      {
+        "id": "f_r3_primary_index_choice",
+        "statement": "Primary authoritative index chosen for the repeatable, reproducible ‘closing print’ is the CME CF Bitcoin Reference Rate (BRR) as published by CF Benchmarks / CME (used for cash-settlement conventions). This index is published at 16:00 London time each Calculation Day and is designed specifically to be a robust daily reference for USD/BTC.",
+        "supporting_source_ids": [
+          "cfbenchmarks_brr_page",
+          "cme_brr_methodology_pdf"
+        ]
+      },
+      {
+        "id": "f_r4_secondary_verification_sources",
+        "statement": "Secondary sources for cross-check and redundancy (to be used for verification of the BRR-based closing print) include: CoinDesk indices (4pm LDN settlement/close convention), exchange daily candle closes (e.g., Binance/major exchange 1d candle close in UTC), aggregated spot pages (CoinMarketCap, CoinGecko), and derivatives market prices (CME listed futures and the CME Bitcoin Friday Futures series). These sources will be used to corroborate the BRR value or to explain any divergence at the BRR observation time.",
+        "supporting_source_ids": [
+          "coindesk_indices",
+          "binance_api_docs",
+          "coinmarketcap_btc_page",
+          "coingecko_btc_page",
+          "cme_bff_quotes_page",
+          "cme_btc_futures_quotes"
+        ]
+      },
+      {
+        "id": "f_r5_cme_friday_future_contract_for_2026-08-21",
+        "statement": "CME lists Bitcoin Friday Futures with discrete Friday expiries. The listed contract for the Friday expiry 21 Aug 2026 appears as 'AUG 2026 D21' with Globex product code in the BFF (Bitcoin Friday Futures) family — the board shows a contract identifier BFFQ621 for the Aug-21-2026 Friday listing in the CME quotes page. This is the CME Friday-Futures instrument to query for market-implied (tradeable) forward prices that map to the 2026-08-21 settlement window.",
+        "supporting_source_ids": [
+          "cme_bff_quotes_page",
+          "cme_bff_specs"
+        ]
+      },
+      {
+        "id": "f_r6_representative_cme_front_month_snapshot_mid_aug",
+        "statement": "CME front-month (classical monthly) Bitcoin futures quotes (example front-month ticker BTCQ6 on CME) were trading in the low-$63k range on mid-August snapshots (CME page examples show BTCQ6 ~ 62,885 in one mid-August snapshot and other front/futures snapshots in the low-63k range). These futures prices provide a market-implied near-term forward context for the 21-Aug observation window (subject to basis, margin, and funding adjustments).",
+        "supporting_source_ids": [
+          "cme_btc_futures_quotes",
+          "bitcoinfuturesinfo_weekly_snapshot",
+          "yahoo_btc_futures_aug2026"
+        ]
+      },
+      {
+        "id": "f_r7_spot_baseline_two_independent_sources_2026-08-15",
+        "statement": "Near the research timestamp (2026-08-15T22:33:03+03:00) two independent spot/aggregate sources reported: CoinGecko live price ≈ $63,486.81 (live snapshot) and Yahoo Finance HISTORICAL data shows BTC-USD daily close for 2026-08-15 as $62,988.45. The difference (~$498–$517 depending on which spot snapshot is compared to which index) illustrates normal cross-source dispersion in spot-level prints vs. index closes. These two independent providers will serve as the live-spot baseline/verification pair for short-term modeling and sanity checks.",
+        "supporting_source_ids": [
+          "coingecko_btc_page",
+          "yahoo_btc_usd_history"
+        ]
+      },
+      {
+        "id": "f_r8_brr_published_prior_close_example_15aug",
+        "statement": "A publicly accessible index listing captured during earlier research reports the CME CF BRR value for 2026-08-15 as $62,970.09 — this provides a recent, reproducible BRR prior-close baseline to compare to the spot/futures snapshots when constructing short-term implied forecasts for 2026-08-21.",
+        "supporting_source_ids": [
+          "cbonds_brr_entry",
+          "cme_brr_methodology_pdf"
+        ]
+      },
+      {
+        "id": "f_r9_options_surface_and_implied_forward_tools",
+        "statement": "Crypto options analytics providers and exchanges (Deribit, Pandabull/gvol-style analytics) publish implied-vol surfaces and support deriving implied forward prices for specific expiries. Deribit documents that it derives implied forward prices from option put-call parity (uses options to infer synthetic forwards for dated expiries) and analytics providers (e.g., Pandabull) show an ATM implied volatility for the 21AUG26 options expiry near 24.4% in mid-August snapshots — these resources enable computation of an options-implied forward or a risk-neutral expected price for the BRR observation date using standard put-call parity / forward-implied formulas.",
+        "supporting_source_ids": [
+          "deribit_mark_price_support",
+          "pandabull_iv_surface",
+          "inverse_options_deribit_support"
+        ]
+      },
+      {
+        "id": "f_r10_forecasting_methodology_options_and_refs",
+        "statement": "Forecasting approaches available and relevant for producing a reproducible numeric estimate for the 2026-08-21 BRR include: (a) futures-implied forward (use the quoted CME Friday Futures (BFF) or front-month futures and adjust for basis/cost-of-carry); (b) options-implied forward / risk-neutral expectation (use put-call parity across strikes or construct a risk-neutral density from the options surface); (c) short-term quantitative models combining recent spot, futures basis, funding rates, flows and liquidity/volume signals; and (d) consensus/analyst short-term estimates. Put-call parity / Deribit/Derivatives exchange documentation and elementary option-pricing references describe the mechanics for (a)–(b); CME product pages describe how to use the Friday futures series for a tradeable implied forward. The next research step (modeling/estimation) requires selecting one of these approaches and pulling the fresh numerical surface/quotes for the exact Aug-21 expiries (futures quotes for BFFQ621 and options surface for 21AUG26) to compute the implied-forward or model output numerically.",
+        "supporting_source_ids": [
+          "cme_brr_methodology_pdf",
+          "deribit_mark_price_support",
+          "investopedia_put_call_parity",
+          "cme_bff_quotes_page"
+        ]
+      }
+    ],
+    "sources": [
+      {
+        "id": "cme_brr_methodology_pdf",
+        "title": "CME CF BITCOIN REFERENCE RATE (BRR) Methodology Guide Version: 2",
+        "url": "https://www.cmegroup.com/trading/files/bitcoin-reference-rate-methodology.pdf",
+        "content": "BRR.1 Relevant Transaction: Any bitcoin versus U.S. Dollar spot trade that occurs during the TWAP Period on a Constituent Exchange ... Retrieval Time: 4:01 p.m. London time on a given Calculation Day, as given by the server clock of the Calculation Agent. TWAP Period: The 60 minute period up to and including 4:00 p.m. London time on a given Calculation Day. ... The one-hour window is divided into 12 equally-sized time intervals of 5 minutes each. For each partition separately, the volume-weighted median trade price is calculated ... Dissemination Time: Once per day, every day of the year including weekends and holidays, between 4:00 p.m. and 4:30 p.m. London time. Dissemination Precision: 0.01 U.S. Dollars.",
+        "published_date": null
+      },
+      {
+        "id": "cfbenchmarks_brr_page",
+        "title": "BRR - CFB - CF Benchmarks",
+        "url": "https://www.cfbenchmarks.com/data/indices/BRR",
+        "content": "CME CF Bitcoin Reference Rate (BRR) ... $63,590.11 -0.58% Last updated: Thu, 13 Aug 2026 15:00:00 GMT ... The BRR is a once a day benchmark index price for Bitcoin that aggregates trade data from multiple Bitcoin-USD markets operated by major cryptocurrency exchanges ... Calculated every day since its launch on 14th November 2016 ... It is published at 1600 London time ...",
+        "published_date": null
+      },
+      {
+        "id": "utc_bst_reference",
+        "title": "UTC to BST (British Summer Time) converter / BST = UTC+1 (DST)",
+        "url": "https://gmttime.net/utc-to-bst",
+        "content": "BST (British Summer Time) offset: UTC+1. BST applies during the UK summer (typically late March to late October); therefore 16:00 London time in August corresponds to 15:00 UTC.",
+        "published_date": null
+      },
+      {
+        "id": "cme_bff_quotes_page",
+        "title": "Bitcoin Friday Futures Quotes - CME Group",
+        "url": "https://www.cmegroup.com/markets/cryptocurrencies/bitcoin/bitcoin-friday-futures/quotes",
+        "content": "Quotes page shows bitcoin Friday-futures listings including entries for AUG 2026 e.g. 'AUG 2026 D21 BFFQ621' (the Friday-21-Aug-2026 listing) and other Friday expiries. Example snapshot lines: 'AUG 2026 D14 BFFQ614 | 65230 | ...' and 'AUG 2026 D21 BFFQ621 | 65025 ...' — CME provides the BFF series with last/volume/updated timestamps on the quotes page (market-data delayed notice applies).",
+        "published_date": null
+      },
+      {
+        "id": "cme_bff_specs",
+        "title": "Bitcoin Friday Futures Contract Specs - CME Group",
+        "url": "https://www.cmegroup.com/markets/cryptocurrencies/bitcoin/bitcoin-friday-futures/specs",
+        "content": "Contract Unit 0.02 bitcoin, Price Quotation in U.S. dollars and cents; Product Code CME Globex: BFF; Listed Contracts: Friday contracts listed for 2 consecutive weeks; Settlement Method: Financially Settled, Floating Price; Termination of Trading Outright: Trading terminates at 4:00 p.m. New York time on Friday of the contract week. (Spec sheet gives precise contract mechanics and trading hours.)",
+        "published_date": null
+      },
+      {
+        "id": "cme_btc_futures_quotes",
+        "title": "Bitcoin Futures Quotes - CME Group (monthly futures page)",
+        "url": "https://www.cmegroup.com/markets/cryptocurrencies/bitcoin/bitcoin/quotes",
+        "content": "CME monthly bitcoin futures (example front-month BTCQ6) quote lines show monthly contract quotes with Last/Change/Prior Settle etc. Example mid-August snapshot entries include monthly front-month quotes in the low-$63k range (e.g., BTCQ6 ~ 62,885 in one snapshot). Market-data delayed notice applies.",
+        "published_date": null
+      },
+      {
+        "id": "coingecko_btc_page",
+        "title": "Bitcoin Price: BTC/USD Live Price Chart, Market Cap & News Today - CoinGecko",
+        "url": "https://www.coingecko.com/en/coins/bitcoin",
+        "content": "The price of Bitcoin (BTC) is $63,486.81 today with a 24-hour trading volume of $18,820,075,927. This represents a 0.21% price increase in the last 24 hours ... (live aggregate snapshot shown on CoinGecko page).",
+        "published_date": null
+      },
+      {
+        "id": "yahoo_btc_usd_history",
+        "title": "Bitcoin USD PRICE (BTC-USD) — historical data (Yahoo Finance)",
+        "url": "https://finance.yahoo.com/quote/BTC-USD/history",
+        "content": "| Aug 15, 2026 | 62,977.61 | 63,086.36 | 62,855.87 | 62,988.45 | 62,988.45 | 11,013,098,496 | ... As of 7:01:17 PM UTC. BTC-USD 62,988.45 +95.37 +0.15%",
+        "published_date": null
+      },
+      {
+        "id": "cbonds_brr_entry",
+        "title": "CME CF Bitcoin Reference Rate (CBonds index listing snapshot)",
+        "url": "https://cbonds.com/indexes/194213",
+        "content": "CME CF Bitcoin Reference Rate | 62,970.09 USD | 15/08/2026 ... daily ... Latest data on 15/08/2026 ... 'CME CF Bitcoin Reference Rate | 62,970.09 USD | 15/08/2026' (index listing showing a BRR value for 15 Aug 2026).",
+        "published_date": null
+      },
+      {
+        "id": "bitcoinfuturesinfo_weekly_snapshot",
+        "title": "Bitcoin Futures Market Breakdown (futures curve & weekly snapshot aggregator)",
+        "url": "https://bitcoinfuturesinfo.com/market-share-and-futures-curve",
+        "content": "Aggregator snapshots show weekly/front futures/perpetuals in the mid-$63k range on mid-August snapshots (examples: weekly Aug-14 snapshot shows $63,314 / $63,271; perpetuals examples ~ $63,316).",
+        "published_date": null
+      },
+      {
+        "id": "deribit_mark_price_support",
+        "title": "Mark Prices – Deribit Support",
+        "url": "https://support.deribit.com/hc/en-us/articles/25944746962973-Mark-Prices",
+        "content": "Deribit: For dated futures, Deribit enhances the futures order book with implied forward prices derived from options markets. Call and put options at the same strike are combined using put-call parity to infer a synthetic forward price. Multiple strikes are evaluated and the strike with the tightest implied bid-ask spread is selected. The resulting implied bid and ask are added to the futures order book as virtual liquidity. (Describes Deribit's use of option-implied forwards/put-call parity in price discovery.)",
+        "published_date": null
+      },
+      {
+        "id": "pandabull_iv_surface",
+        "title": "Pandabull | BTC on Deribit Implied Volatility Surface | Forward Volatility | Put Skew Term Structure",
+        "url": "https://pandabull.io/iv_surfaces/deribit/BTC",
+        "content": "Implied-volatility surface snapshots (example mid-August) list expiries including '21AUG26' and show ATM/term IVs; example mid-August ATM IV for 21AUG26 shown ~ 24.40% in the surface snapshot. (Analytics provider output suitable for constructing options-implied forwards / risk-neutral densities.)",
+        "published_date": null
+      },
+      {
+        "id": "inverse_options_deribit_support",
+        "title": "Inverse Options - Deribit Support",
+        "url": "https://support.deribit.com/hc/en-us/articles/31424939096093-Inverse-Options",
+        "content": "Deribit inverse options doc: defines option symbol formats, notes that the forward price for an expiry is the corresponding future's mark price (if no corresponding future, a synthetic future is used), sets out Black-Scholes formula usage for implied volatility and the relationship between options and forward pricing on Deribit.",
+        "published_date": null
+      },
+      {
+        "id": "investopedia_put_call_parity",
+        "title": "Put–call parity - Investopedia (explanatory reference)",
+        "url": "https://www.investopedia.com/terms/p/putcallparity.asp",
+        "content": "Put-call parity is a fundamental relationship that links European call and put prices with the forward (or synthetic forward) on the same underlying, enabling one to compute implied forwards from option prices via call - put + discounted strike = forward. (Provides standard formula and explanation used to construct options-implied forward prices.)",
+        "published_date": null
+      },
+      {
+        "id": "coinshares_market_update_13aug2026",
+        "title": "Market update | August 13th, 2026 — CoinShares",
+        "url": "https://coinshares.com/dk-en/insights/research-data/market-update-13-08-2026",
+        "content": "Market update | August 13th, 2026 — A low-volume lull, with the macro backdrop quietly turning. Bitcoin remains caught in a summer lull, with unusually low trading volumes making short-term price moves harder to interpret. Daily Bitcoin volumes are currently running at US$4B per day on trusted exchanges, with similarly subdued activity across equities and other risk assets.",
+        "published_date": "Aug 13, 2026"
+      }
+    ]
+  },
+  "analysis": {
+    "summary": "The research precisely defines the user’s “next Friday close” as the CME CF Bitcoin Reference Rate (BRR) for Friday, 2026-08-21, which is the 60-minute TWAP of BTC/USD spot trades ending at 16:00 London time (15:00 UTC in August). The BRR is selected as the authoritative, reproducible closing convention. Secondary corroboration sources are identified (aggregate spot pages, CME futures, and a third-party BRR listing). Mid-August baselines indicate Bitcoin trading in the low-$63k range across spot and futures, with the 2026-08-15 BRR around $62,970. Methods to produce a forecast (futures-implied and options-implied forwards) are outlined with supporting documentation, and the specific CME Friday Futures contract for 2026-08-21 (BFFQ621) is identified for use. However, the critical steps to generate an exact numeric prediction to $0.01—choosing and parameterizing a forecasting method, pulling fresh BFFQ621 quotes and an options surface for 21AUG26 near the event date, computing an options-implied forward, and providing a model-driven BRR estimate—are not completed in the collected evidence, so no precise forecast can yet be produced or justified with fresh quotes.",
+    "claims": [
+      {
+        "claim": "The target closing convention is the CME CF Bitcoin Reference Rate (BRR) for Friday, 2026-08-21, defined as the 60-minute TWAP of BTC/USD spot trades up to and including 16:00 London time and published once daily with $0.01 precision.",
+        "supporting_source_ids": [
+          "cme_brr_methodology_pdf",
+          "cfbenchmarks_brr_page"
+        ],
+        "confidence": 0.95
+      },
+      {
+        "claim": "On 2026-08-21, London will be on British Summer Time (BST = UTC+1), so the BRR observation window ends at 15:00:00 UTC.",
+        "supporting_source_ids": [
+          "utc_bst_reference",
+          "cme_brr_methodology_pdf"
+        ],
+        "confidence": 0.9
+      },
+      {
+        "claim": "The BRR is the primary, authoritative, and widely used daily USD/BTC reference chosen for an unambiguous, reproducible closing price.",
+        "supporting_source_ids": [
+          "cfbenchmarks_brr_page",
+          "cme_brr_methodology_pdf"
+        ],
+        "confidence": 0.95
+      },
+      {
+        "claim": "Secondary verification sources identified for cross-checking around the BRR time include: aggregate spot indices (CoinGecko), exchange/aggregated daily closes (Yahoo Finance BTC-USD), CME futures (monthly and Friday series), and a third-party BRR index listing (CBonds).",
+        "supporting_source_ids": [
+          "coingecko_btc_page",
+          "yahoo_btc_usd_history",
+          "cme_btc_futures_quotes",
+          "cme_bff_quotes_page",
+          "cbonds_brr_entry"
+        ],
+        "confidence": 0.8
+      },
+      {
+        "claim": "The specific CME Bitcoin Friday Futures contract corresponding to Friday, 2026-08-21 is listed as AUG 2026 D21 with identifier BFFQ621 in the CME Friday Futures (BFF) family; contract specs confirm listing mechanics and settlement conventions.",
+        "supporting_source_ids": [
+          "cme_bff_quotes_page",
+          "cme_bff_specs"
+        ],
+        "confidence": 0.85
+      },
+      {
+        "claim": "Mid-August CME monthly bitcoin futures were quoted in the low-$63k range, consistent with near-term forward levels around that period.",
+        "supporting_source_ids": [
+          "cme_btc_futures_quotes",
+          "bitcoinfuturesinfo_weekly_snapshot"
+        ],
+        "confidence": 0.65
+      },
+      {
+        "claim": "Around the research timestamp (2026-08-15), independent spot/aggregate sources reported Bitcoin near the low-$63k range: CoinGecko live ≈ $63,486.81 and Yahoo Finance daily close at $62,988.45 for 2026-08-15.",
+        "supporting_source_ids": [
+          "coingecko_btc_page",
+          "yahoo_btc_usd_history"
+        ],
+        "confidence": 0.85
+      },
+      {
+        "claim": "A third-party index listing shows the CME CF BRR for 2026-08-15 as $62,970.09, providing a recent BRR baseline.",
+        "supporting_source_ids": [
+          "cbonds_brr_entry"
+        ],
+        "confidence": 0.7
+      },
+      {
+        "claim": "Options-implied forward estimation for the 21AUG26 expiry is feasible using put–call parity and available options data; Deribit documentation describes deriving implied forwards from options, and analytics (e.g., Pandabull) display IVs for 21AUG26 (example ATM IV ~24.4% in mid-August snapshots).",
+        "supporting_source_ids": [
+          "deribit_mark_price_support",
+          "inverse_options_deribit_support",
+          "investopedia_put_call_parity",
+          "pandabull_iv_surface"
+        ],
+        "confidence": 0.8
+      },
+      {
+        "claim": "Multiple forecasting approaches are suitable for producing a BRR estimate for 2026-08-21: futures-implied forward (using BFFQ621 or nearby futures) and options-implied forward (via put–call parity) are documented and implementable given fresh quotes near the event date.",
+        "supporting_source_ids": [
+          "cme_bff_quotes_page",
+          "deribit_mark_price_support",
+          "investopedia_put_call_parity",
+          "cme_brr_methodology_pdf"
+        ],
+        "confidence": 0.85
+      },
+      {
+        "claim": "Market context into Aug 13, 2026 indicates subdued trading volumes and a summer lull in Bitcoin markets, suggesting potentially lower realized volatility into the forecast window.",
+        "supporting_source_ids": [
+          "coinshares_market_update_13aug2026"
+        ],
+        "confidence": 0.9
+      }
+    ],
+    "contradictions": [
+      "Level differences across sources for 2026-08-15 (CoinGecko live ~$63.49k vs. Yahoo BTC-USD close $62.99k vs. CBonds-listed BRR $62.97k) reflect differing methodologies and timestamps (live aggregate vs. exchange close vs. BRR 16:00 London fix); these are explainable dispersions rather than a hard contradiction.",
+      "CME futures quotes are delayed snapshots and shown in ranges, not precise synchronized prints, which may differ from simultaneous spot or BRR baselines."
+    ],
+    "unresolved_questions": [
+      "No concrete forecasting methodology has been selected and parameterized (e.g., strictly futures-implied using BFFQ621 mid as-of Aug 20, options-implied forward using a 21AUG26 surface snapshot, or a combined model).",
+      "Fresh, time-stamped quotes for the exact CME Bitcoin Friday Futures contract maturing 2026-08-21 (BFFQ621) near publication time (ideally Aug 20, 2026 UTC) are missing; these are required to compute a futures-implied BRR estimate.",
+      "A current options surface snapshot for the 21AUG26 expiry (calls and puts across strikes, with bid/ask) is not provided; without it, an options-implied forward or risk-neutral expectation for the BRR cannot be computed.",
+      "A model-driven BRR prediction for 2026-08-21 to the nearest cent (including calculation steps and source-cited inputs) is not produced in the collected evidence.",
+      "Latest pre-close secondary references near the BRR timestamp (around 15:00 UTC on 2026-08-21) — such as spot aggregates or exchange prints — are not included to cross-verify any forecast or the eventual BRR.",
+      "If a combined methodology were chosen, required ancillary inputs (e.g., funding rates, order flow, realized vol, liquidity) are absent, precluding a calibrated short-term quant model output."
+    ]
+  },
+  "check_result": {
+    "decision": "research",
+    "reasoning": "The research defines the closing convention (CME CF BRR), identifies primary/secondary sources, and outlines forecasting methods, but stops short of producing any numeric forecast. Critical data and steps are missing: fresh futures quotes for BFFQ621, an options surface snapshot for 21AUG26, a chosen methodology parameterized and applied, and a computed BRR estimate (to $0.01) with corroborating spot prints at the BRR time.",
+    "missing_information": [
+      "Fresh time-stamped quote for the CME Bitcoin Friday Futures contract BFFQ621 (AUG 21, 2026) near the observation window (e.g. 2026-08-20 or 2026-08-21 just before 16:00 London time)",
+      "Options market data for the 21AUG26 expiry (calls and puts bid/ask across strikes) near the BRR timestamp to compute an options-implied forward",
+      "A selected and parameterized forecasting methodology (e.g. futures-implied, options-implied, or combined)",
+      "A calculated numeric prediction for the 2026-08-21 BRR (to $0.01) including all inputs and computation steps",
+      "Spot/aggregate price snapshots (e.g. CoinGecko, Binance) at 15:00 UTC on 2026-08-21 for cross-verification"
+    ],
+    "incorrect_claims": [],
+    "additional_queries": [
+      "CME Friday Futures BFFQ621 quote snapshot for Aug 21 2026 contract as of Aug 20/21 2026 near 16:00 London time",
+      "Deribit BTC 21AUG26 options bid/ask quote snapshot (all strikes) around Aug 20 2026",
+      "CoinGecko and Binance BTC/USD price at 15:00 UTC on 2026-08-21",
+      "Analyst consensus or derivative-implied forecasts for Bitcoin price at 21 Aug 2026 closing"
+    ]
+  },
+  "final_answer": {
+    "answer": "Short answer\nI cannot produce a defensible, exact BTC closing price to the cent for “next Friday” (the BRR closing print for 2026-08-21) using only the validated research provided. The research defines the target precisely (CME CF BRR for 21 Aug 2026, observation window ending 16:00 London time = 15:00:00 UTC), identifies the primary and verification data sources, and shows recent mid‑August price context — but it does not include the fresh, time‑stamped market quotes (CME Friday‑Futures BFFQ621 near the settlement time, the 21AUG26 options surface, or spot prints at 15:00 UTC on 2026‑08‑21) needed to compute an exact $0.01‑precision forecast. Without those specific, time‑stamped inputs and a chosen, parameterized forecasting method, an exact numeric prediction would be unsupported by the available evidence. (Sources: cme_brr_methodology_pdf, cfbenchmarks_brr_page, utc_bst_reference.)\n\nWhat I can and will provide from the validated research\n- Exact target definition (unambiguous and reproducible): the CME CF Bitcoin Reference Rate (BRR) for 21 Aug 2026. The BRR is the 60‑minute TWAP of BTC/USD trades up to and including 16:00 London time on the Calculation Day; in August (BST = UTC+1) that corresponds to an observation end at 15:00:00 UTC on 2026‑08‑21. (cme_brr_methodology_pdf, cfbenchmarks_brr_page, utc_bst_reference)\n\n- Recent baseline context (mid‑August snapshots from the validated research):\n  • CBonds listing of the CME CF BRR on 2026‑08‑15: $62,970.09 (gives the recent BRR baseline). (cbonds_brr_entry)\n  • CoinGecko live mid‑Aug snapshot ≈ $63,486.81 (live aggregate spot snapshot). (coingecko_btc_page)\n  • Yahoo Finance BTC‑USD daily close for 2026‑08‑15: $62,988.45. (yahoo_btc_usd_history)\n  • CME monthly/front‑month futures and Friday‑futures context show near‑term forwards in the low‑$63k range in mid‑August; the CME Friday‑futures contract for the Friday expiry 21 Aug 2026 is listed as AUG 2026 D21 (BFFQ621). (cme_btc_futures_quotes, bitcoinfuturesinfo_weekly_snapshot, cme_bff_quotes_page)\n  • Market context: low volumes / summer lull around mid‑August. (coinshares_market_update_13aug2026)\n\nWhy an exact, justified prediction to $0.01 is not provided here\n- Missing required fresh quotes: to compute an exact, reproducible BRR estimate you need time‑stamped market data near the BRR observation window (examples: a BFFQ621 futures quote snapshot close to 16:00 London on 2026‑08‑20/21, a full Deribit or other options surface for the 21AUG26 expiry with bid/ask across strikes, and spot/exchange prints at 15:00 UTC on 2026‑08‑21). Those specific inputs are not present in the validated research, and the analysis explicitly lists them as missing. (cme_bff_quotes_page, deribit_mark_price_support, pandabull_iv_surface)\n- Method and inputs not fixed/applied: the research outlines feasible forecasting approaches (futures‑implied forward using BFFQ621, options‑implied forward via put‑call parity, or a combined model) and cites the relevant methodology, but no single method was selected, parameterized, and executed with fresh numerical inputs. Without both a chosen method and the fresh quotes, any exact cent‑level claim would be unsupported. (investopedia_put_call_parity, deribit_mark_price_support, cme_brr_methodology_pdf)\n\nWhat would be required to produce an exact, reproducible BRR forecast (offer)\nIf you want a precise numeric forecast to $0.01 (and the full, source‑backed computation), I can do that provided you allow one of the following two options:\n1) I am given or allowed to fetch time‑stamped market quotes near the BRR window: (a) CME Friday Futures BFFQ621 quote snapshot near 16:00 London time on Aug 20/21, 2026; (b) an options surface snapshot for 21AUG26 (calls and puts across strikes, bid/ask) near that time; (c) spot prints at 15:00 UTC on 2026‑08‑21 (CoinGecko/Binance/Yahoo). With those inputs I will pick / state a forecasting method (futures‑implied, options‑implied, or combined), show the calculations, and publish a $0.01‑precision BRR prediction and cross‑verifications.\n2) Or, you instruct me which forecasting method and assumptions to use (e.g., “use the mid price of BFFQ621 as of 2026‑08‑20 15:00 UTC and ignore options”), and provide the required quoted inputs — I will compute and justify the exact forecast from those numbers.\n\nIf you prefer, I can also: (a) proceed now to fetch the live/fresh inputs and produce the cent‑level BRR forecast and worked calculations, or (b) produce a probabilistic interval (e.g., a 68%/95% range) based only on the mid‑August baselines above and plausible short‑term vol assumptions — but neither option will meet your original request for an exact $0.01 price unless the fresh, time‑stamped market quotes and a chosen methodology are supplied and used. (deribit_mark_price_support, pandabull_iv_surface, investopedia_put_call_parity)\n\nSupporting source IDs\n[cme_brr_methodology_pdf, cfbenchmarks_brr_page, utc_bst_reference, cbonds_brr_entry, coingecko_btc_page, yahoo_btc_usd_history, cme_bff_quotes_page, cme_btc_futures_quotes, bitcoinfuturesinfo_weekly_snapshot, deribit_mark_price_support, pandabull_iv_surface, investopedia_put_call_parity, coinshares_market_update_13aug2026]",
+    "supporting_source_ids": [
+      "cme_brr_methodology_pdf",
+      "cfbenchmarks_brr_page",
+      "utc_bst_reference",
+      "cbonds_brr_entry",
+      "coingecko_btc_page",
+      "yahoo_btc_usd_history",
+      "cme_bff_quotes_page",
+      "cme_btc_futures_quotes",
+      "bitcoinfuturesinfo_weekly_snapshot",
+      "deribit_mark_price_support",
+      "pandabull_iv_surface",
+      "investopedia_put_call_parity",
+      "coinshares_market_update_13aug2026"
+    ]
+  }
+}

@@ -1,0 +1,6 @@
+2026-08-15 19:45:45,056 | INFO | node=pre_planner_guardrail_node
+2026-08-15 19:45:45,056 | WARNING | Guardrail triggered | node=pre_planner_guardrail_node | guardrail=input_length_guardrail | attempt=0 | message=User query input length is above the limit
+2026-08-15 19:45:45,056 | INFO | router=guardrail action=blocked
+2026-08-15 19:45:45,058 | INFO | node=save_result
+2026-08-15 19:45:45,058 | WARNING | Pipeline result saved with guardrail error | guardrail=input_length_guardrail | node=pre_planner | attempt=0 | message=User query input length is above the limit
+2026-08-15 19:45:45,059 | INFO | node=save_result updated=[]

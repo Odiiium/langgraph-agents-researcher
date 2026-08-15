@@ -1,0 +1,6 @@
+2026-08-15 19:58:41,727 | INFO | node=pre_planner_guardrail_node
+2026-08-15 19:58:41,727 | WARNING | Guardrail triggered | node=pre_planner_guardrail_node | guardrail=empty_query_guardrail | attempt=0 | message=User query is empty
+2026-08-15 19:58:41,728 | INFO | router=guardrail action=blocked
+2026-08-15 19:58:41,729 | INFO | node=save_result
+2026-08-15 19:58:41,729 | WARNING | Pipeline result saved with guardrail error | guardrail=empty_query_guardrail | node=pre_planner | attempt=0 | message=User query is empty
+2026-08-15 19:58:41,730 | INFO | node=save_result updated=[]

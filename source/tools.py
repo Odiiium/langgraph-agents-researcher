@@ -1,6 +1,7 @@
 import os
 from typing import Literal
 from .models import SearchResult
+from .logging_config import get_logger
 from langchain_core.tools import tool
 from sympy import sympify
 from tavily.tavily import TavilyClient
@@ -28,9 +29,13 @@ def calculator_tool(expression: str):
     """
     if not expression or not expression.strip():
         return "ERROR: empty expression"
+    get_logger().info("tool=calculator expression=%r", expression)
     try:
-        return str(sympify(expression).evalf())
+        result = str(sympify(expression).evalf())
+        get_logger().info("tool=calculator observation=%s", result)
+        return result
     except Exception as e:
+        get_logger().warning("tool=calculator error=%s", e)
         return f"ERROR: could not calculate expression: {e}"
 
 @tool
@@ -70,6 +75,7 @@ def search_tool(query : str,
         return "ERROR: empty search query"
 
     max_results = max(1, min(max_results, 10))
+    get_logger().info("tool=search_tool query=%r topic=%s", query, topic)
     
     try:
         response = tavily_client.search(query=query,
@@ -78,6 +84,7 @@ def search_tool(query : str,
                                         max_results=max_results)
         
         results = response.get("results", [])
+        get_logger().info("tool=search_tool observation=%d results", len(results))
         
         if not results: 
             return []
@@ -88,6 +95,7 @@ def search_tool(query : str,
                                 published_date=result.get("published_date")) for result in results]
 
     except Exception as e:
+        get_logger().warning("tool=search_tool error=%s", e)
         return f"ERROR: search failed for query {query}: {e}"
 
 @tool

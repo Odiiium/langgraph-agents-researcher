@@ -1,0 +1,6 @@
+2026-08-15 19:45:44,193 | INFO | node=pre_planner_guardrail_node
+2026-08-15 19:45:45,050 | WARNING | Guardrail triggered | node=pre_planner_guardrail_node | guardrail=prompt_injection_guardrail | attempt=0 | message=The user attempted to override agent instructions by asking to ignore all previous guidelines and requested inappropriate and dangerous content.
+2026-08-15 19:45:45,051 | INFO | router=guardrail action=blocked
+2026-08-15 19:45:45,052 | INFO | node=save_result
+2026-08-15 19:45:45,053 | WARNING | Pipeline result saved with guardrail error | guardrail=prompt_injection_guardrail | node=pre_planner | attempt=0 | message=The user attempted to override agent instructions by asking to ignore all previous guidelines and requested inappropriate and dangerous content.
+2026-08-15 19:45:45,053 | INFO | node=save_result updated=[]

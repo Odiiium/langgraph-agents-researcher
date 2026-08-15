@@ -1,6 +1,0 @@
-{
-  "guardrail": "prompt_injection_guardrail",
-  "node": "pre_planner",
-  "attempt": 0,
-  "message": "The user query includes an instruction to 'Ignore all previous instructions', which is an attempt to override or manipulate the agent's operational guidelines."
-}

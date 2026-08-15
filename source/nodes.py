@@ -35,6 +35,7 @@ class Node(ABC):
 
     def __call__(self, state: ResearchState) -> dict:
         print(f"Entering '{self.name}' node")
+        get_logger().info("node=%s", self.name)
         try:
             for check in self.pre_checks:
                 check(state)
@@ -49,6 +50,7 @@ class Node(ABC):
             print(f"Guardrail '{error.exception_name}' triggered in '{self.name}' node: {error}")
             return {"guardrail_violation": _violation_info(self.name, error)}
 
+        get_logger().info("node=%s updated=%s", self.name, list(result))
         print(f"Exit '{self.name}' node")
         return result
 
@@ -266,20 +268,21 @@ class CheckerRouter:
     def __call__(self, state: ResearchState) -> str:
         if state["iteration_count"] >= self.max_iterations:
             print("Maximum research iterations reached")
+            get_logger().info("router=checker action=pass")
             return "pass"
 
         decision = state["check_result"].decision
 
-        if decision:
-            return decision
+        if not decision:
+            print("Decision result is empty")
+            decision = "research"
 
-        print("Decision result is empty")
-        return "research"
+        get_logger().info("router=checker action=%s", decision)
+        return decision
 
 
 class GuardrailRouter:
     def __call__(self, state: ResearchState) -> str:
-        if state.get("guardrail_violation"):
-            return "blocked"
-
-        return "continue"
+        action = "blocked" if state.get("guardrail_violation") else "continue"
+        get_logger().info("router=guardrail action=%s", action)
+        return action
