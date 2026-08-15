@@ -1,0 +1,6 @@
+{
+  "guardrail": "prompt_injection_guardrail",
+  "node": "pre_planner",
+  "attempt": 0,
+  "message": "The query attempts to override agent instructions by telling it to ignore all previous instructions and requests potentially harmful information."
+}

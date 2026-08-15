@@ -1,0 +1,6 @@
+{
+  "guardrail": "prompt_injection_guardrail",
+  "node": "pre_planner",
+  "attempt": 0,
+  "message": "The user attempts to override agent instructions and requests sensitive and dangerous information, indicating potential malicious intent."
+}
