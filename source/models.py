@@ -4,6 +4,14 @@ from pydantic import BaseModel, Field
 
 max_research_tasks_count = 3
 
+class InjectionDecision(str, Enum):
+    SAFE = "safe"
+    BLOCK = "block"
+
+class InjectionCheck(BaseModel):
+    decision: InjectionDecision
+    reason: str
+
 # Research
 
 class ResearchTask(BaseModel):
@@ -72,8 +80,14 @@ class SynthesizedAnswer(BaseModel):
     answer: str
     supporting_source_ids : list[str] = Field(default_factory=list)
 
-# LangGraph state    
+# Guardrails
+class GuardrailViolationInfo(BaseModel):
+    guardrail: str
+    node: str
+    attempt: int
+    message: str
     
+# LangGraph state    
 class ResearchState(TypedDict):
     user_query: str
     current_time : str | None
@@ -83,3 +97,4 @@ class ResearchState(TypedDict):
     analysis: AnalysisResult | None
     check_result: CheckResult | None
     final_answer: SynthesizedAnswer | None
+    guardrail_violation: GuardrailViolationInfo | None
