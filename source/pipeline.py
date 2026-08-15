@@ -9,12 +9,14 @@ from .llms import build_structured_llm, build_researcher_agent
 from .models import (
     AnalysisResult,
     CheckResult,
+    InjectionCheck,
     ResearchPlan,
     ResearchState,
     SynthesizedAnswer,
 )
 from .nodes import (
     AnalyzerNode,
+    GuardrailNode,
     CheckerNode,
     CheckerRouter,
     CurrentTimeNode,
@@ -83,6 +85,7 @@ def build_research_pipeline(max_iterations: int = MAX_ITERATIONS) -> Pipeline:
     nodes = [
         CurrentTimeNode(),
         GuardrailNode("pre_planner_guardrail_node", guardrails=[
+            EmptyQueryGuardrail(),
             InputLengthGuardrail(),
             PromptInjectionGuardrail(
                 llm=build_structured_llm(
@@ -92,9 +95,18 @@ def build_research_pipeline(max_iterations: int = MAX_ITERATIONS) -> Pipeline:
             )
         ]),
         PlannerNode(llm=build_structured_llm(ResearchPlan, model=GPT5_MODEL)),
-        ResearcherNode(agent=build_researcher_agent()),
-        AnalyzerNode(llm=build_structured_llm(AnalysisResult, GPT5_MODEL)),
-        CheckerNode(llm=build_structured_llm(CheckResult, O4_MINI_MODEL)),
+        ResearcherNode(
+            agent=build_researcher_agent(),
+            pre_checks=(EmptyPlanGuardrail(),),
+        ),
+        AnalyzerNode(
+            llm=build_structured_llm(AnalysisResult, GPT5_MODEL),
+            pre_checks=(ResearchGroundingGuardrail(),),
+        ),
+        CheckerNode(
+            llm=build_structured_llm(CheckResult, O4_MINI_MODEL),
+            iteration_guardrail=ResearchIterationGuardrail(),
+        ),
         SynthesizerNode(llm=build_structured_llm(SynthesizedAnswer, GPT5_MINI_MODEL)),
         SaveResultNode(),
     ]
@@ -103,8 +115,6 @@ def build_research_pipeline(max_iterations: int = MAX_ITERATIONS) -> Pipeline:
         (START, "pre_planner_guardrail_node"),
         ("current_time", "planner"),
         ("planner", "research"),
-        ("research", "analyzer"),
-        ("analyzer", "checker"),
         ("synthesizer", "save_result"),
         ("save_result", END),
     ]
@@ -114,8 +124,24 @@ def build_research_pipeline(max_iterations: int = MAX_ITERATIONS) -> Pipeline:
             source="pre_planner_guardrail_node",
             router=GuardrailRouter(),
             mapping={
-                "blocked": END,
+                "blocked": "save_result",
                 "continue": "current_time",
+            },
+        ),
+        ConditionalEdge(
+            source="research",
+            router=GuardrailRouter(),
+            mapping={
+                "blocked": "save_result",
+                "continue": "analyzer",
+            },
+        ),
+        ConditionalEdge(
+            source="analyzer",
+            router=GuardrailRouter(),
+            mapping={
+                "blocked": "save_result",
+                "continue": "checker",
             },
         ),
         ConditionalEdge(

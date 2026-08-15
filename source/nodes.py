@@ -5,9 +5,10 @@ from zoneinfo import ZoneInfo
 from abc import ABC, abstractmethod
 from langchain_core.messages import HumanMessage
 
-from .guardrails import *
+from .guardrails import Guardrail, GuardrailViolation
 from .config import RESULTS_DIR, TIMEZONE
-from .models import ResearchState
+from .logging_config import get_logger
+from .models import ResearchState, GuardrailViolationInfo
 from .prompts import (
     ANALYZER_PROMPT,
     CHECKER_PROMPT,
@@ -18,24 +19,51 @@ from .prompts import (
 )
 
 
+def _violation_info(node: str, error: GuardrailViolation) -> GuardrailViolationInfo:
+    return GuardrailViolationInfo(
+        guardrail=error.exception_name,
+        node=error.node or node,
+        attempt=error.attempt,
+        message=str(error),
+    )
+
+
 class Node(ABC):
     name: str
-    pre_checks : tuple[Guardrail] = ()
-    post_checks : tuple[Guardrail] = ()
+    pre_checks: tuple[Guardrail] = ()
+    post_checks: tuple[Guardrail] = ()
 
     def __call__(self, state: ResearchState) -> dict:
         print(f"Entering '{self.name}' node")
-        for check in self.pre_checks:
-            check(state)
-        result = self.run(state)
-        for check in self.post_checks:
-            check(state, result)
+        try:
+            for check in self.pre_checks:
+                check(state)
+            result = self.run(state)
+            for check in self.post_checks:
+                check(state, result)
+        except GuardrailViolation as error:
+            get_logger().warning(
+                "Guardrail triggered | node=%s | guardrail=%s | attempt=%s | message=%s",
+                self.name, error.exception_name, error.attempt, str(error),
+            )
+            print(f"Guardrail '{error.exception_name}' triggered in '{self.name}' node: {error}")
+            return {"guardrail_violation": _violation_info(self.name, error)}
+
         print(f"Exit '{self.name}' node")
         return result
 
     @abstractmethod
     def run(self, state: ResearchState) -> dict:
         ...
+
+
+class GuardrailNode(Node):
+    def __init__(self, name: str, guardrails: list[Guardrail]):
+        self.name = name
+        self.pre_checks = tuple(guardrails)
+
+    def run(self, state: ResearchState) -> dict:
+        return {}
 
 
 class CurrentTimeNode(Node):
@@ -64,19 +92,32 @@ class PlannerNode(Node):
 class ResearcherNode(Node):
     name = "research"
 
-    def __init__(self, agent, pre_checks = ()):
+    def __init__(self, agent, pre_checks: tuple[Guardrail] = ()):
         self.agent = agent
-        self.pre_checks = pre_checks
+        self.pre_checks = tuple(pre_checks)
 
     def run(self, state: ResearchState) -> dict:
-
-        
-        agent_result = self.agent.invoke({"messages": [HumanMessage(build_researcher_prompt(state))]})
+        try:
+            agent_result = self.agent.invoke(
+                {"messages": [HumanMessage(build_researcher_prompt(state))]}
+            )
+        except Exception as error:
+            raise GuardrailViolation(
+                message=f"Research agent failed: {error}",
+                node="research",
+                attempt=state["iteration_count"],
+                exception_name="researcher_response_guardrail",
+            )
 
         research = agent_result.get("structured_response")
 
         if research is None:
-            raise ValueError(f"Agent returned no structured_response. Keys: {list(agent_result.keys())}")
+            raise GuardrailViolation(
+                message="Agent returned no structured_response",
+                node="research",
+                attempt=state["iteration_count"],
+                exception_name="researcher_response_guardrail",
+            )
 
         return {"research": research}
 
@@ -84,8 +125,9 @@ class ResearcherNode(Node):
 class AnalyzerNode(Node):
     name = "analyzer"
 
-    def __init__(self, llm):
+    def __init__(self, llm, pre_checks: tuple[Guardrail] = ()):
         self.llm = llm
+        self.pre_checks = tuple(pre_checks)
 
     def run(self, state: ResearchState) -> dict:
         analysis = self.llm.invoke(
@@ -103,8 +145,9 @@ class AnalyzerNode(Node):
 class CheckerNode(Node):
     name = "checker"
 
-    def __init__(self, llm):
+    def __init__(self, llm, iteration_guardrail: Guardrail | None = None):
         self.llm = llm
+        self.iteration_guardrail = iteration_guardrail
 
     def run(self, state: ResearchState) -> dict:
         check_result = self.llm.invoke(
@@ -117,10 +160,22 @@ class CheckerNode(Node):
                 date=date_block(state.get("current_time")),
             )
         )
-        return {
-            "check_result": check_result,
-            "iteration_count": state["iteration_count"] + 1,
-        }
+
+        new_count = state["iteration_count"] + 1
+        result = {"check_result": check_result, "iteration_count": new_count}
+
+        if self.iteration_guardrail is not None:
+            try:
+                self.iteration_guardrail.check({**state, "iteration_count": new_count})
+            except GuardrailViolation as error:
+                get_logger().warning(
+                    "Iteration guardrail reached | attempt=%s | message=%s",
+                    error.attempt, str(error),
+                )
+                print(f"Iteration limit reached: {error}. Synthesizing from current state.")
+                result["guardrail_violation"] = _violation_info(self.name, error)
+
+        return result
 
 
 class SynthesizerNode(Node):
@@ -154,37 +209,55 @@ class SaveResultNode(Node):
         output_dir = Path(self.results_dir) / timestamp
         output_dir.mkdir(parents=True, exist_ok=True)
 
-        final_result = state["final_answer"]
+        violation = state.get("guardrail_violation")
+        final_result = state.get("final_answer")
 
-        print("Save final answer as JSON")
-        with open(output_dir / "research_result.json", "w", encoding="utf-8") as f:
-            json.dump(final_result.model_dump(), f, ensure_ascii=False, indent=2)
+        if final_result is not None:
+            print("Save final answer as JSON")
+            with open(output_dir / "research_result.json", "w", encoding="utf-8") as f:
+                json.dump(final_result.model_dump(), f, ensure_ascii=False, indent=2)
 
-        print("Save final answer as Markdown")
-        with open(output_dir / "research_result.md", "w", encoding="utf-8") as f:
-            f.write(final_result.answer)
+            print("Save final answer as Markdown")
+            with open(output_dir / "research_result.md", "w", encoding="utf-8") as f:
+                f.write(final_result.answer)
+
+        if violation is not None:
+            print("Save guardrail error")
+            with open(output_dir / "guardrail_error.json", "w", encoding="utf-8") as f:
+                json.dump(violation.model_dump(), f, ensure_ascii=False, indent=2)
+            get_logger().warning(
+                "Pipeline result saved with guardrail error | guardrail=%s | node=%s | attempt=%s | message=%s",
+                violation.guardrail, violation.node, violation.attempt, violation.message,
+            )
 
         run_result = {
             "user_query": state["user_query"],
             "iteration_count": state["iteration_count"],
-            "plan": state["plan"].model_dump() if state["plan"] else None,
-            "research": state["research"].model_dump() if state["research"] else None,
-            "analysis": state["analysis"].model_dump() if state["analysis"] else None,
+            "guardrail_violation": violation.model_dump() if violation else None,
+            "plan": state["plan"].model_dump() if state.get("plan") else None,
+            "research": state["research"].model_dump() if state.get("research") else None,
+            "analysis": state["analysis"].model_dump() if state.get("analysis") else None,
             "check_result": (
-                state["check_result"].model_dump() if state["check_result"] else None
+                state["check_result"].model_dump() if state.get("check_result") else None
             ),
-            "final_answer": (
-                state["final_answer"].model_dump() if state["final_answer"] else None
-            ),
+            "final_answer": final_result.model_dump() if final_result else None,
         }
 
         print("Save complete pipeline state")
         with open(output_dir / "run.json", "w", encoding="utf-8") as f:
             json.dump(run_result, f, ensure_ascii=False, indent=2)
 
-        print(f"Research result saved to {output_dir}")
-        return {}
+        # Console output.
+        if violation is not None:
+            print(f"\n[GUARDRAIL ERROR] {violation.guardrail} @ {violation.node}: {violation.message}")
+        if final_result is not None:
+            print("\n=== FINAL ANSWER ===")
+            print(final_result.answer)
+        elif violation is not None:
+            print("Pipeline stopped by guardrail — no final answer was produced.")
 
+        print(f"\nResearch result saved to {output_dir}")
+        return {}
 
 class CheckerRouter:
     def __init__(self, max_iterations: int):
@@ -202,6 +275,7 @@ class CheckerRouter:
 
         print("Decision result is empty")
         return "research"
+
 
 class GuardrailRouter:
     def __call__(self, state: ResearchState) -> str:

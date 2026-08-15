@@ -26,6 +26,7 @@ def main():
             analysis=None,
             check_result=None,
             final_answer=None,
+            guardrail_violation=None,
         ),
         callbacks=[langfuse_handler],
     )

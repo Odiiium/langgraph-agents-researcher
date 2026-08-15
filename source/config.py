@@ -13,6 +13,7 @@ TIMEZONE = "Europe/Kyiv"
 # Output paths
 RESULTS_DIR = "results"
 GRAPH_IMAGE_PATH = "graph.png"
+LOG_DIR = "logs"
 
 #Guardrails
 MAX_QUERY_LENGTH = 500

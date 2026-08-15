@@ -196,6 +196,10 @@ current merely because it appears near the top of the search results.
 
 Use tools autonomously when needed.
 
+If a tool result starts with "ERROR:", treat it as a failed tool call rather
+than valid data. Retry with adjusted parameters or continue without it, and
+never use an error message as a source or finding.
+
 You do not need to use every available tool.
 
 Do not call get_current_datetime unless a timezone conversion or a relative

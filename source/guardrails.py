@@ -1,18 +1,19 @@
 from abc import ABC, abstractmethod
 
-from .llms import build_structured_llm
-from .models import ResearchState, InjectionCheck, InjectionDecision, GuardrailViolationInfo
-from .nodes import Node
+from .models import ResearchState, InjectionDecision
 from .config import *
+
 
 class GuardrailViolation(Exception):
     """Raised when a guardrail check fails."""
-    def __init__(self, message: str, node: str, attempt: int, exception_name : str):
+
+    def __init__(self, message: str, node: str, attempt: int, exception_name: str):
         super().__init__(message)
         self.node = node
         self.attempt = attempt
         self.exception_name = exception_name
-        
+
+
 class Guardrail(ABC):
     name: str = "guardrail"
 
@@ -24,59 +25,71 @@ class Guardrail(ABC):
         self.check(state)
 
 
-class GuardrailNode(Node):
-    def __init__(self, name: str, guardrails: list[Guardrail]):
-        self.name = name
-        self.guardrails = guardrails
-
-    def run(self, state: ResearchState) -> dict:
-        for guardrail in self.guardrails:
-            try:
-                guardrail.check(state)
-
-            except GuardrailViolation as e:
-                return {
-                    "guardrail_violation": GuardrailViolationInfo(
-                        guardrail=e.exception_name,
-                        node=e.node,
-                        attempt=e.attempt,
-                        message=str(e),
-                    )
-                }
-
-        return {
-            "guardrail_violation": None
-        }
-
 class InputLengthGuardrail(Guardrail):
-    name : str = "input_length_guardrail"
-    
+    name: str = "input_length_guardrail"
+
     def check(self, state: ResearchState) -> None:
-        if state["user_query"] > MAX_QUERY_LENGTH:
-            raise GuardrailViolation(message="User queries input length is above the limit",
-                                     node="pre_planner",
-                                     attempt=state["iteration_count"],
-                                     exception_name=self.name)
-            
-class PlanTasksSizeGuardrail(Guardrail):
-    name : str = "plan_tasks_count_guardrail"
-    
-    def check(self, state: ResearchState) -> None:
-        if len(state["plan"].tasks) > PLAN_TASKS_SIZE:
-            raise GuardrailViolation(message="Plan tasks size is above the limit",
-                                     node="planner",
-                                     attempt=state['plan'].tasks,
-                                     exception_name=self.name)
-            
+        if len(state["user_query"]) > MAX_QUERY_LENGTH:
+            raise GuardrailViolation(
+                message="User query input length is above the limit",
+                node="pre_planner",
+                attempt=state["iteration_count"],
+                exception_name=self.name,
+            )
+
 class ResearchIterationGuardrail(Guardrail):
-    name : str = "research_iterations_guardrail"
-    
+    name: str = "research_iterations_guardrail"
+
     def check(self, state: ResearchState) -> None:
-        if len(state["iteration_count"]) > MAX_ITERATIONS:
-            raise GuardrailViolation(message="Research iterations count is above the limit",
-                                     node="research",
-                                     attempt=state['plan'].tasks,
-                                     exception_name=self.name)
+        if state["iteration_count"] >= MAX_ITERATIONS:
+            raise GuardrailViolation(
+                message="Research iterations count reached the limit",
+                node="research",
+                attempt=state["iteration_count"],
+                exception_name=self.name,
+            )
+
+
+class EmptyQueryGuardrail(Guardrail):
+    name = "empty_query_guardrail"
+
+    def check(self, state: ResearchState) -> None:
+        if not state["user_query"] or not state["user_query"].strip():
+            raise GuardrailViolation(
+                message="User query is empty",
+                node="pre_planner",
+                attempt=state["iteration_count"],
+                exception_name=self.name,
+            )
+
+
+class EmptyPlanGuardrail(Guardrail):
+    name = "empty_plan_guardrail"
+
+    def check(self, state: ResearchState) -> None:
+        plan = state["plan"]
+        if plan is None or not plan.tasks:
+            raise GuardrailViolation(
+                message="Research plan has no tasks",
+                node="planner",
+                attempt=state["iteration_count"],
+                exception_name=self.name,
+            )
+
+
+class ResearchGroundingGuardrail(Guardrail):
+    name = "research_grounding_guardrail"
+
+    def check(self, state: ResearchState) -> None:
+        research = state["research"]
+        if research is None or not research.findings or not research.sources:
+            raise GuardrailViolation(
+                message="Research produced no findings or sources",
+                node="research",
+                attempt=state["iteration_count"],
+                exception_name=self.name,
+            )
+
 
 class PromptInjectionGuardrail(Guardrail):
     name = "prompt_injection_guardrail"
@@ -123,8 +136,3 @@ class PromptInjectionGuardrail(Guardrail):
                 attempt=state["iteration_count"],
                 exception_name=self.name,
             )
-            
-class PrePlannerGuardrailNode(GuardrailNode):
-    def __init__(self, name, guardrails):
-        self.name = name
-        self.guardrails = [InputLengthGuardrail(), PromptInjectionGuardrail(llm=build_structured_llm(schema=InjectionCheck, model=GPT4_O_MODEL))]

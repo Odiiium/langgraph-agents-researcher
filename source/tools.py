@@ -26,11 +26,12 @@ def calculator_tool(expression: str):
     - "2 ** 10"
     - "sqrt(144)"
     """
+    if not expression or not expression.strip():
+        return "ERROR: empty expression"
     try:
-        result = sympify(expression).evalf()
-        return str(result)
+        return str(sympify(expression).evalf())
     except Exception as e:
-        return f"Could not calculate expression: {e}"
+        return f"ERROR: could not calculate expression: {e}"
 
 @tool
 def search_tool(query : str,
@@ -65,6 +66,9 @@ def search_tool(query : str,
         Search results containing title, URL and extracted content.
     """
     
+    if not query or not query.strip():
+        return "ERROR: empty search query"
+
     max_results = max(1, min(max_results, 10))
     
     try:
@@ -84,7 +88,7 @@ def search_tool(query : str,
                                 published_date=result.get("published_date")) for result in results]
 
     except Exception as e:
-            return f"Search failed for query {query} with exception: {e}"
+        return f"ERROR: search failed for query {query}: {e}"
 
 @tool
 def get_current_datetime(timezone: str = "UTC") -> str:
